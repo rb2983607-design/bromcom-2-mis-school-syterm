@@ -61,7 +61,7 @@ function AuthScreen({ onLogin }) {
           onChange={e=>setPassword(e.target.value)} 
           className="w-full p-2 mb-2 border rounded"/>
         {error && <p className="text-red-500 mb-2">{error}</p>}
-        <button onClick={handleLogin} className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Login</button>
+        <button onClick={handleLogin} className="w-full bg-[#005EB8] text-white p-2 rounded hover:bg-[#004C9A]">Login</button>
       </div>
     </div>
   );
@@ -72,13 +72,16 @@ function AuthScreen({ onLogin }) {
 // ========================================
 function SchoolHeader({ user, school, onLogout }) {
   return (
-    <div className="w-full bg-gray-100 shadow-md rounded-b-xl p-4 flex justify-between items-center">
-      <div>
-        <h1 className="text-xl font-bold">{school}</h1>
-        <p className="text-gray-600">{user.role} {user.group ? `- ${user.group}` : ''}</p>
+    <div className="w-full bg-[#005EB8] shadow-md rounded-b-xl p-4 flex justify-between items-center text-white">
+      <div className="flex items-center">
+        <img src="/logo.png" alt="Bromcom logo" className="h-10 mr-3 inline-block" onError={(e)=>{e.target.style.display='none'}} />
+        <div>
+          <h1 className="text-xl font-bold">{school}</h1>
+          <p className="text-white text-sm">{user.role} {user.group ? `- ${user.group}` : ''}</p>
+        </div>
       </div>
       <div>
-        <button onClick={onLogout} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
+        <button onClick={onLogout} className="bg-white text-[#005EB8] px-4 py-2 rounded hover:bg-gray-100">Logout</button>
       </div>
     </div>
   );
@@ -90,10 +93,10 @@ function SchoolHeader({ user, school, onLogout }) {
 function Sidebar({ currentPage, setCurrentPage }) {
   const links = ['Dashboard', 'Behaviour', 'Modules', 'Timetable', 'Parents'];
   return (
-    <div className="w-60 bg-gray-800 text-white min-h-screen p-4 flex flex-col">
+    <div className="w-60 bg-[#003F87] text-white min-h-screen p-4 flex flex-col">
       {links.map(link => (
         <button key={link} onClick={() => setCurrentPage(link)} 
-          className={`w-full text-left p-3 mb-2 rounded ${currentPage===link ? 'bg-gray-700' : 'hover:bg-gray-700'}`}>
+          className={`w-full text-left p-3 mb-2 rounded ${currentPage===link ? 'bg-[#002B55]' : 'hover:bg-[#002B55]'}`}>
           {link}
         </button>
       ))}
