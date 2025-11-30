@@ -101,11 +101,11 @@ function SchoolHeader({ user, school, onLogout }) {
 // SECTION 4: SIDEBAR NAVIGATION
 // ========================================
 function Sidebar({ currentPage, setCurrentPage }) {
-  const links = ['Dashboard', 'Behaviour', 'Modules', 'Timetable', 'Parents'];
+  const links = ['Dashboard', 'Behaviour', 'Modules', 'Staff', 'Teachers', 'Parents', 'Admin'];
   return (
     <div className="w-60 bg-[#003F87] text-white min-h-screen p-4 flex flex-col">
       {links.map(link => (
-        <button key={link} onClick={() => setCurrentPage(link)} 
+        <button key={link} onClick={() => setCurrentPage(link)}
           className={`w-full text-left p-3 mb-2 rounded ${currentPage===link ? 'bg-[#002B55]' : 'hover:bg-[#002B55]'}`}>
           {link}
         </button>
@@ -191,6 +191,7 @@ function Modules() {
   const [selectedVoice, setSelectedVoice] = useState('');
   const [rate, setRate] = useState(1);
   const [pitch, setPitch] = useState(1);
+  const [alarmAudio, setAlarmAudio] = useState(null);
   const [detentionTriggered, setDetentionTriggered] = useState({});
 
   const handleStop = (idx, e, d) => {
@@ -199,10 +200,28 @@ function Modules() {
     setPositions(newPos);
   };
 
-  const playAudio = (file) => { 
-    const audio = new Audio(file); 
-    audio.volume=1; 
-    audio.play(); 
+  const playAudio = (file, { loop=false, volume=1 } = {}) => { 
+    try {
+      const audio = new Audio(file);
+      audio.volume = volume;
+      audio.loop = loop;
+      audio.play();
+      if (loop) {
+        // keep reference so it can be stopped
+        setAlarmAudio(audio);
+      }
+      return audio;
+    } catch (err) {
+      console.error('Error playing audio', err);
+      return null;
+    }
+  };
+
+  const stopAlarm = () => {
+    if (alarmAudio) {
+      try { alarmAudio.pause(); alarmAudio.currentTime = 0; } catch(e){}
+      setAlarmAudio(null);
+    }
   };
 
   const broadcastPA = () => { 
@@ -222,6 +241,60 @@ function Modules() {
     utter.volume = 1;
     speechSynthesis.speak(utter);
     setPaMessage(''); 
+  };
+
+  const triggerPreset = (type) => {
+    // All preset announcements play at full volume
+    if (!('speechSynthesis' in window) && (type === 'general' || type === 'lockdown')) {
+      alert('Speech Synthesis not supported in this browser');
+      return;
+    }
+
+    if (type === 'general') {
+      const msg = 'Attention please. This is a general announcement. Please listen for further instructions.';
+      const utt = new SpeechSynthesisUtterance(msg);
+      if (voices && voices.length && selectedVoice) {
+        const v = voices.find(voice => voice.name === selectedVoice);
+        if (v) utt.voice = v;
+      }
+      utt.rate = rate;
+      utt.pitch = pitch;
+      utt.volume = 1;
+      speechSynthesis.speak(utt);
+      return;
+    }
+
+    if (type === 'lockdown') {
+      // announce lockdown and optionally play lockdown audio
+      const msg = 'LOCKDOWN: This is an important safety announcement. All students and staff must move to a safe location immediately and follow the lockdown procedure.';
+      const utt = new SpeechSynthesisUtterance(msg);
+      if (voices && voices.length && selectedVoice) {
+        const v = voices.find(voice => voice.name === selectedVoice);
+        if (v) utt.voice = v;
+      }
+      utt.rate = Math.max(0.9, rate - 0.1);
+      utt.pitch = Math.max(0.8, pitch - 0.2);
+      utt.volume = 1;
+      speechSynthesis.speak(utt);
+      // play lockdown audio if available
+      playAudio('/sounds/lockdown.mp3', { loop: true, volume: 1 });
+      return;
+    }
+
+    if (type === 'fire') {
+      // play fire alarm siren loudly and loop
+      stopAlarm();
+      playAudio('/sounds/firealarm.mp3', { loop: true, volume: 1 });
+      return;
+    }
+
+    if (type === 'bell') {
+      // play bell 3 times (short bursts)
+      for (let i=0;i<3;i++) {
+        setTimeout(()=>playAudio('/sounds/bell.mp3', { volume: 1 }), i*1000);
+      }
+      return;
+    }
   };
 
   // load available voices
@@ -325,6 +398,13 @@ function Modules() {
               placeholder="Type message and press Enter (or click Broadcast)" className="border p-2 rounded flex-1"/>
             <button onClick={broadcastPA} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Broadcast</button>
           </div>
+          <div className="flex items-center space-x-2 mt-3">
+            <button onClick={()=>triggerPreset('general')} className="bg-indigo-600 text-white px-3 py-2 rounded">General</button>
+            <button onClick={()=>triggerPreset('lockdown')} className="bg-red-700 text-white px-3 py-2 rounded">Lockdown</button>
+            <button onClick={()=>triggerPreset('fire')} className="bg-red-600 text-white px-3 py-2 rounded">Fire Alarm</button>
+            <button onClick={()=>triggerPreset('bell')} className="bg-yellow-400 text-black px-3 py-2 rounded">School Bell (3x)</button>
+            <button onClick={stopAlarm} className="bg-gray-300 text-black px-3 py-2 rounded">Stop Alarm</button>
+          </div>
         </div>
       </div>
       <div className="bg-white p-4 rounded shadow flex space-x-2">
@@ -343,7 +423,7 @@ function Modules() {
 function Timetable() {
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Timetable</h2>
+      <SectionTitle title="Timetable" color="#003F87" />
       <div className="grid grid-cols-5 gap-2">
         {['Mon','Tue','Wed','Thu','Fri'].map(day=><div key={day} className="bg-white p-4 rounded shadow">{day}</div>)}
       </div>
@@ -357,8 +437,38 @@ function Timetable() {
 function Parents() {
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Parents</h2>
+      <SectionTitle title="Parents" color="#003F87" />
       <p>View your child's attendance, behaviour, and grades.</p>
+    </div>
+  );
+}
+
+// ========================================
+// SECTION: STAFF, TEACHERS, ADMIN PAGES
+// ========================================
+function Staff() {
+  return (
+    <div>
+      <SectionTitle title="Staff" subtitle="Staff directory and contact details" color="#003F87" />
+      <div className="bg-white p-4 rounded shadow">Staff list and roles will appear here.</div>
+    </div>
+  );
+}
+
+function Teachers() {
+  return (
+    <div>
+      <SectionTitle title="Teachers" subtitle="Teacher profiles and timetables" color="#003F87" />
+      <div className="bg-white p-4 rounded shadow">Teachers' profiles and classes will appear here.</div>
+    </div>
+  );
+}
+
+function Admin() {
+  return (
+    <div>
+      <SectionTitle title="Admin" subtitle="Administration tools and settings" color="#003F87" />
+      <div className="bg-white p-4 rounded shadow">Admin controls and reports will appear here.</div>
     </div>
   );
 }
@@ -382,6 +492,9 @@ function App() {
     case 'Behaviour': PageComponent=Behaviour; break;
     case 'Modules': PageComponent=Modules; break;
     case 'Timetable': PageComponent=Timetable; break;
+    case 'Staff': PageComponent=Staff; break;
+    case 'Teachers': PageComponent=Teachers; break;
+    case 'Admin': PageComponent=Admin; break;
     case 'Parents': PageComponent=Parents; break;
     default: PageComponent=Dashboard;
   }
