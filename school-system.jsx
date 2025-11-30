@@ -193,6 +193,8 @@ function Modules() {
   const [pitch, setPitch] = useState(1);
   const [alarmAudio, setAlarmAudio] = useState(null);
   const [detentionTriggered, setDetentionTriggered] = useState({});
+  const [currentAnnouncement, setCurrentAnnouncement] = useState('');
+  const [alarmActive, setAlarmActive] = useState(false);
 
   const handleStop = (idx, e, d) => {
     const newPos = [...positions];
@@ -209,6 +211,7 @@ function Modules() {
       if (loop) {
         // keep reference so it can be stopped
         setAlarmAudio(audio);
+        setAlarmActive(true);
       }
       return audio;
     } catch (err) {
@@ -221,6 +224,8 @@ function Modules() {
     if (alarmAudio) {
       try { alarmAudio.pause(); alarmAudio.currentTime = 0; } catch(e){}
       setAlarmAudio(null);
+      setAlarmActive(false);
+      setCurrentAnnouncement('');
     }
   };
 
@@ -239,6 +244,9 @@ function Modules() {
     utter.rate = rate || 1;
     utter.pitch = pitch || 1;
     utter.volume = 1;
+    // show announcement visually and clear when speech ends
+    setCurrentAnnouncement(paMessage);
+    utter.onend = () => { setCurrentAnnouncement(''); };
     speechSynthesis.speak(utter);
     setPaMessage(''); 
   };
@@ -260,6 +268,8 @@ function Modules() {
       utt.rate = rate;
       utt.pitch = pitch;
       utt.volume = 1;
+      setCurrentAnnouncement(msg);
+      utt.onend = () => setCurrentAnnouncement('');
       speechSynthesis.speak(utt);
       return;
     }
@@ -275,6 +285,8 @@ function Modules() {
       utt.rate = Math.max(0.9, rate - 0.1);
       utt.pitch = Math.max(0.8, pitch - 0.2);
       utt.volume = 1;
+      setCurrentAnnouncement(msg);
+      utt.onend = () => setCurrentAnnouncement('');
       speechSynthesis.speak(utt);
       // play lockdown audio if available
       playAudio('/sounds/lockdown.mp3', { loop: true, volume: 1 });
@@ -284,15 +296,20 @@ function Modules() {
     if (type === 'fire') {
       // play fire alarm siren loudly and loop
       stopAlarm();
+      setCurrentAnnouncement('FIRE ALARM - Please evacuate immediately');
       playAudio('/sounds/firealarm.mp3', { loop: true, volume: 1 });
       return;
     }
 
     if (type === 'bell') {
       // play bell 3 times (short bursts)
+      const msg = 'School bell.';
+      setCurrentAnnouncement('School Bell (3x)');
       for (let i=0;i<3;i++) {
         setTimeout(()=>playAudio('/sounds/bell.mp3', { volume: 1 }), i*1000);
       }
+      // clear announcement shortly after last bell
+      setTimeout(()=>setCurrentAnnouncement(''), 3500);
       return;
     }
   };
@@ -338,6 +355,12 @@ function Modules() {
 
   return (
     <div className="space-y-6">
+      {/* Announcement / Alarm Banner */}
+      {currentAnnouncement && (
+        <div className={`p-3 rounded ${alarmActive ? 'bg-red-700 text-white' : 'bg-indigo-600 text-white'}`}>
+          <strong>{alarmActive ? 'ALARM ACTIVE:' : 'ANNOUNCEMENT:'}</strong> {currentAnnouncement}
+        </div>
+      )}
       {/* Detention Alert Banner */}
       {Object.keys(detentionTriggered).length > 0 && (
         <div className="bg-red-600 text-white p-4 rounded-lg shadow-lg border-2 border-red-800">
