@@ -32,3 +32,13 @@ Notes:
 - For a pixel-perfect Bromcom theme you can provide official brand assets (fonts, logo, CSS tokens).
 
 If you want, I can push a ready Vite scaffold with this app wired in and runnable immediately — tell me if you'd like that.
+
+Audio assets
+
+- Add alarm/audio assets to `public/sounds/`:
+  - `firealarm.mp3` — looping fire alarm siren
+  - `lockdown.mp3` — lockdown alert tone (optional)
+  - `bell.mp3` — short bell sound for school bell
+
+I added a `public/sounds/.gitkeep` placeholder file; please replace with your real audio files so alarm presets work in the browser.
+
