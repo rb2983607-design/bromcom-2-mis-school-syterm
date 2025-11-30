@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import ReactDOM from 'react-dom';
 import Draggable from 'react-draggable';
-import './index.css';
 
 // Small reusable section title so each page can have a distinct look
 function SectionTitle({ title, subtitle, color }) {
@@ -533,4 +531,4 @@ function App() {
   );
 }
 
-ReactDOM.render(<App/>, document.getElementById('root'));
+export default App;
