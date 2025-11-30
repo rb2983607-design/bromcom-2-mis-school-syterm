@@ -87,6 +87,11 @@ function SchoolHeader({ user, school, onLogout }) {
   const [selectedVoice, setSelectedVoice] = useState('');
   const [alarmAudio, setAlarmAudio] = useState(null);
   const [alarmActive, setAlarmActive] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [confirm, setConfirm] = useState(null); // {type, message}
+  const [recording, setRecording] = useState(false);
+  const [voiceBlob, setVoiceBlob] = useState(null);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
 
   React.useEffect(() => {
     const load = () => {
@@ -102,7 +107,7 @@ function SchoolHeader({ user, school, onLogout }) {
   const playAudioHeader = (file, { loop=false, volume=1 } = {}) => {
     try {
       const a = new Audio(file);
-      a.loop = loop; a.volume = volume; a.play();
+      a.loop = loop; a.volume = (typeof volume === 'number' ? volume : 1); a.play();
       if (loop) { setAlarmAudio(a); setAlarmActive(true); }
       return a;
     } catch(e){ console.error(e); return null; }
@@ -121,11 +126,49 @@ function SchoolHeader({ user, school, onLogout }) {
       if (v) u.voice = v;
     }
     u.rate = 1; u.pitch = 1; u.volume = 1;
+    // If voice message was recorded, play TTS first then voice
+    if (voiceBlob) {
+      u.onend = () => {
+        const audio = new Audio(URL.createObjectURL(voiceBlob));
+        audio.volume = volume;
+        audio.play();
+      };
+    }
     speechSynthesis.speak(u);
     setPaMessage('');
   };
 
-  const triggerHeaderPreset = (type) => {
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setVoiceBlob(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      recorder.start();
+      setMediaRecorder(recorder);
+      setRecording(true);
+    } catch (e) {
+      alert('Microphone access denied: ' + e.message);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      setRecording(false);
+    }
+  };
+
+  const clearVoiceMessage = () => {
+    setVoiceBlob(null);
+  };
+
+  const triggerHeaderPreset = (type, skipConfirm=false) => {
     if (type === 'general') {
       const msg = 'Attention please. This is a general announcement.';
       const u = new SpeechSynthesisUtterance(msg);
@@ -133,79 +176,128 @@ function SchoolHeader({ user, school, onLogout }) {
       return;
     }
     if (type === 'lockdown') {
+      if (!skipConfirm) { setConfirm({ type: 'lockdown', message: 'Trigger LOCKDOWN alarm and announcement? This will loop loud audio.' }); return; }
       const msg = 'LOCKDOWN: Please follow the lockdown procedure now.';
       speechSynthesis.speak(new SpeechSynthesisUtterance(msg));
-      playAudioHeader(`${BASE_URL}sounds/lockdown.mp3`, { loop:true, volume: 1 });
+      playAudioHeader(`${BASE_URL}sounds/lockdown.mp3`, { loop:true, volume: volume });
       return;
     }
     if (type === 'fire') {
+      if (!skipConfirm) { setConfirm({ type: 'fire', message: 'Trigger FIRE alarm and announcement? This will loop loud audio.' }); return; }
       speechSynthesis.speak(new SpeechSynthesisUtterance('FIRE ALARM. Evacuate immediately.'));
-      playAudioHeader(`${BASE_URL}sounds/firealarm.mp3`, { loop:true, volume: 1 });
+      playAudioHeader(`${BASE_URL}sounds/firealarm.mp3`, { loop:true, volume: volume });
       return;
     }
     if (type === 'bell') {
-      for (let i=0;i<3;i++) setTimeout(()=>playAudioHeader(`${BASE_URL}sounds/bell.mp3`, { volume:1 }), i*800);
+      for (let i=0;i<3;i++) setTimeout(()=>playAudioHeader(`${BASE_URL}sounds/bell.mp3`, { volume: volume }), i*800);
       return;
     }
   };
 
   return (
     <div className="app-header">
-      <div style={{display:'flex', alignItems:'center', gap:12}}>
-        <img src={`${BASE_URL}logo.svg`} alt="Bromcom logo" onError={(e)=>{e.target.style.display='none'}} style={{height:40, borderRadius:6}} />
+      <div style={{display:'flex', alignItems:'center', gap:16, flex:1}}>
+        <img src={`${BASE_URL}logo.svg`} alt="Bromcom logo" onError={(e)=>{e.target.style.display='none'}} style={{height:44, width:44, borderRadius:8}} />
         <div>
           <div className="title">{school}</div>
           <div className="sub">{user.role} {user.group ? `- ${user.group}` : ''}</div>
         </div>
       </div>
 
-      <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <input value={paMessage} onChange={e=>setPaMessage(e.target.value)} placeholder="PA message" style={{padding:'6px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',minWidth:220,background:'rgba(255,255,255,0.06)',color:'white'}} />
-          <select value={selectedVoice} onChange={e=>setSelectedVoice(e.target.value)} style={{padding:'6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'white'}}>
+      <div style={{display:'flex', alignItems:'center', gap:12, flex:2, justifyContent:'flex-end'}}>
+        <div style={{display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.06)', padding:'6px 12px', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)'}}>
+          <input value={paMessage} onChange={e=>setPaMessage(e.target.value)} placeholder="PA message" style={{padding:'6px 8px', borderRadius:6, border:'1px solid rgba(255,255,255,0.15)', width:200, background:'rgba(255,255,255,0.06)', color:'white', fontSize:'0.875rem'}} />
+          <select value={selectedVoice} onChange={e=>setSelectedVoice(e.target.value)} style={{padding:'6px 8px', borderRadius:6, border:'1px solid rgba(255,255,255,0.08)', background:'rgba(255,255,255,0.04)', color:'white', fontSize:'0.875rem'}}>
             {voices.length === 0 && <option>Loading voices...</option>}
-            {voices.map(v=> <option key={v.name} value={v.name}>{v.name}{v.lang?` (${v.lang})`:''}</option>)}
+            {voices.map(v=> <option key={v.name} value={v.name}>{v.name}</option>)}
           </select>
-          <button onClick={broadcastHeader} className="btn btn-primary">Broadcast</button>
+          <button onClick={broadcastHeader} className="btn btn-primary" style={{padding:'6px 10px', fontSize:'0.8125rem'}}>Speak</button>
+          <button onClick={recording ? stopRecording : startRecording} className={`btn ${recording ? 'btn-danger' : 'btn-ghost'}`} style={{padding:'6px 10px', fontSize:'0.8125rem'}}>
+            {recording ? '⏹' : '🎤'}
+          </button>
+          {voiceBlob && <button onClick={clearVoiceMessage} className="btn btn-ghost" title="Clear voice message" style={{padding:'6px 8px', fontSize:'0.75rem'}}>✕</button>}
+          {voiceBlob && <span className="muted" style={{fontSize:11}}>🎙️</span>}
         </div>
 
-        <div style={{display:'flex',gap:6,alignItems:'center'}}>
-          <button onClick={()=>triggerHeaderPreset('general')} className="btn btn-ghost">General</button>
-          <button onClick={()=>triggerHeaderPreset('lockdown')} className="btn btn-danger">Lockdown</button>
-          <button onClick={()=>triggerHeaderPreset('fire')} className="btn btn-danger">Fire</button>
-          <button onClick={()=>triggerHeaderPreset('bell')} className="btn btn-ghost">Bell</button>
-          <button onClick={stopAlarmHeader} className="btn btn-ghost">Stop</button>
+        <div style={{display:'flex', gap:6, alignItems:'center'}}>
+          <button onClick={()=>triggerHeaderPreset('general')} className="btn btn-ghost" style={{padding:'6px 10px', fontSize:'0.8125rem'}}>General</button>
+          <button onClick={()=>triggerHeaderPreset('lockdown')} className="btn btn-danger" style={{padding:'6px 10px', fontSize:'0.8125rem'}}>Lockdown</button>
+          <button onClick={()=>triggerHeaderPreset('fire')} className="btn btn-danger" style={{padding:'6px 10px', fontSize:'0.8125rem'}}>Fire</button>
+          <button onClick={()=>triggerHeaderPreset('bell')} className="btn btn-ghost" style={{padding:'6px 10px', fontSize:'0.8125rem'}}>Bell</button>
+          <button onClick={stopAlarmHeader} className="btn btn-ghost" style={{padding:'6px 10px', fontSize:'0.8125rem'}}>Stop</button>
+        </div>
+
+        <div style={{display:'flex', alignItems:'center', gap:6, paddingLeft:12, borderLeft:'1px solid rgba(255,255,255,0.15)'}}>
+          <label className="muted" style={{fontSize:'0.8125rem', fontWeight:500}}>Vol</label>
+          <input type="range" min="0" max="1" step="0.01" value={volume} onChange={e=>setVolume(parseFloat(e.target.value))} style={{width:60}} />
         </div>
 
         <div className="user-pill">
-          <div style={{width:32,height:32,borderRadius:999,background:'#ffffff22',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{(user.name||'U').split(' ').map(n=>n[0]).slice(0,2).join('')}</div>
-          <div style={{fontSize:12}}>{user.name}</div>
+          <div style={{width:32, height:32, borderRadius:999, background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:'0.875rem'}}>{(user.name||'U').split(' ').map(n=>n[0]).slice(0,2).join('')}</div>
+          <div style={{fontSize:'0.8125rem', fontWeight:600}}>{user.name}</div>
         </div>
-        <button onClick={onLogout} className="btn btn-ghost">Logout</button>
+        <button onClick={onLogout} className="btn btn-ghost" style={{padding:'6px 12px', fontSize:'0.8125rem'}}>Logout</button>
       </div>
+    {confirm && (
+      <div style={{position:'fixed', left:0, top:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999}}>
+        <div className="card" style={{maxWidth:480, background:'white'}}>
+          <h3 style={{margin:'0 0 0.5rem 0', fontSize:'1.125rem', fontWeight:700, color:'var(--bromcom-dark)'}}>Confirm Action</h3>
+          <p style={{margin:'0 0 1rem 0', color:'var(--gray-600)', fontSize:'0.9375rem'}}>{confirm.message}</p>
+          <div style={{display:'flex', justifyContent:'flex-end', gap:8}}>
+            <button onClick={()=>setConfirm(null)} className="btn btn-ghost">Cancel</button>
+            <button onClick={()=>{ triggerHeaderPreset(confirm.type, true); setConfirm(null); }} className="btn btn-danger">Confirm</button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
-}
-
-// ========================================
+ }// ========================================
 // SECTION 4: SIDEBAR NAVIGATION
 // ========================================
 function Sidebar({ currentPage, setCurrentPage }) {
   const links = ['Dashboard', 'Attendance', 'Behaviour', 'Modules', 'Staff', 'Teachers', 'Parents', 'Admin'];
+  const icons = {
+    Dashboard: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3v6h8V3h-8zM3 21h8v-6H3v6z" fill="currentColor"/></svg>),
+    Attendance: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 11h5v5H7zM3 5h18v16H3zM8 1v4" stroke="currentColor" strokeWidth="0"/></svg>),
+    Behaviour: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5" fill="currentColor"/></svg>),
+    Modules: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" fill="currentColor"/></svg>),
+    Staff: (<svg width="18" height="18" viewBox="0 0 24 24"><path d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM8 11c1.657 0 3-1.343 3-3S9.657 5 8 5 5 6.343 5 8s1.343 3 3 3zM2 20c0-2.667 4-4 6-4s6 1.333 6 4v1H2v-1z" fill="currentColor"/></svg>),
+    Teachers: (<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2l4 4-4 4-4-4 4-4zm0 10c4 0 8 2 8 6v2H4v-2c0-4 4-6 8-6z" fill="currentColor"/></svg>),
+    Parents: (<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zM4 20v-1a4 4 0 014-4h8a4 4 0 014 4v1H4z" fill="currentColor"/></svg>),
+    Admin: (<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm9.4 4a7.9 7.9 0 01-.1 1l2.1 1.6-2 3.4-2.5-.5a8 8 0 01-1.5 1.2l-.4 2.6h-4l-.4-2.6a8 8 0 01-1.5-1.2L4.6 18l-2-3.4L4.7 13A7.9 7.9 0 014.6 12 8 8 0 0112 4a8 8 0 019.4 8z" fill="currentColor"/></svg>)
+  };
+
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="app-sidebar">
-      <div className="brand">
-        <img src={`${BASE_URL}logo.svg`} alt="logo" onError={(e)=>{e.target.style.display='none'}} />
-        <div>
-          <div style={{fontWeight:800}}>Bromcom</div>
-          <div style={{fontSize:12,opacity:0.9}}>School MIS</div>
-        </div>
+    <div className={`app-sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <div className="brand" style={{display:'flex', alignItems:'center', gap:12}}>
+        <img src={`${BASE_URL}logo.svg`} alt="logo" onError={(e)=>{e.target.style.display='none'}} style={{height:40, width:40}} />
+        {!collapsed && (
+          <div>
+            <div style={{fontWeight:800, fontSize:'1rem', letterSpacing:'-0.5px'}}>Bromcom</div>
+            <div style={{fontSize:'0.75rem', opacity:0.85, fontWeight:500}}>School MIS</div>
+          </div>
+        )}
       </div>
-      <div style={{flex:1}}>
+      <div style={{flex:1, marginTop:8}}>
         {links.map(link => (
           <button key={link} onClick={() => setCurrentPage(link)}
-            className={`nav-button ${currentPage===link? 'active':''}`}> {link} </button>
+            title={link}
+            className={`nav-button ${currentPage===link? 'active':''}`}
+            style={{display:'flex', alignItems:'center', gap:10, fontSize:collapsed ? '0.75rem' : '0.9375rem'}}>
+            <span style={{display:'inline-flex', width:20, height:20, justifyContent:'center', alignItems:'center', flexShrink:0}}>{icons[link]}</span>
+            {!collapsed && <span>{link}</span>}
+          </button>
         ))}
+      </div>
+
+      <div style={{padding:8, borderTop:'1px solid rgba(255,255,255,0.08)'}}>
+        <button onClick={()=>setCollapsed(s=>!s)} className="nav-button" style={{width:'100%', fontSize:'0.8125rem', justifyContent:'center', gap:6}}>
+          {collapsed ? '»' : '«'} 
+          {!collapsed && 'Collapse'}
+        </button>
       </div>
     </div>
   );
