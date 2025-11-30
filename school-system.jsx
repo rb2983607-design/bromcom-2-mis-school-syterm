@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import Draggable from 'react-draggable';
 
+// Get base URL from Vite for proper asset paths
+const BASE_URL = import.meta.env.BASE_URL || '/';
+
 // Small reusable section title so each page can have a distinct look
 function SectionTitle({ title, subtitle, color }) {
   return (
@@ -82,7 +85,7 @@ function SchoolHeader({ user, school, onLogout }) {
   return (
     <div className="w-full bg-[#005EB8] shadow-md rounded-b-xl p-4 flex justify-between items-center text-white">
       <div className="flex items-center">
-        <img src="/bromcom-2-mis-school-syterm/logo.svg" alt="Bromcom logo" className="h-10 mr-3 inline-block" onError={(e)=>{e.target.style.display='none'}} />
+        <img src={`${BASE_URL}logo.svg`} alt="Bromcom logo" className="h-10 mr-3 inline-block" onError={(e)=>{e.target.style.display='none'}} />
         <div>
           <h1 className="text-xl font-bold">{school}</h1>
           <p className="text-white text-sm">{user.role} {user.group ? `- ${user.group}` : ''}</p>
@@ -287,7 +290,7 @@ function Modules() {
       utt.onend = () => setCurrentAnnouncement('');
       speechSynthesis.speak(utt);
       // play lockdown audio if available
-      playAudio('/bromcom-2-mis-school-syterm/sounds/lockdown.mp3', { loop: true, volume: 1 });
+      playAudio(`${BASE_URL}sounds/lockdown.mp3`, { loop: true, volume: 1 });
       return;
     }
 
@@ -295,7 +298,7 @@ function Modules() {
       // play fire alarm siren loudly and loop
       stopAlarm();
       setCurrentAnnouncement('FIRE ALARM - Please evacuate immediately');
-      playAudio('/bromcom-2-mis-school-syterm/sounds/firealarm.mp3', { loop: true, volume: 1 });
+      playAudio(`${BASE_URL}sounds/firealarm.mp3`, { loop: true, volume: 1 });
       return;
     }
 
@@ -304,7 +307,7 @@ function Modules() {
       const msg = 'School bell.';
       setCurrentAnnouncement('School Bell (3x)');
       for (let i=0;i<3;i++) {
-        setTimeout(()=>playAudio('/bromcom-2-mis-school-syterm/sounds/bell.mp3', { volume: 1 }), i*1000);
+        setTimeout(()=>playAudio(`${BASE_URL}sounds/bell.mp3`, { volume: 1 }), i*1000);
       }
       // clear announcement shortly after last bell
       setTimeout(()=>setCurrentAnnouncement(''), 3500);
@@ -429,10 +432,10 @@ function Modules() {
         </div>
       </div>
       <div className="bg-white p-4 rounded shadow flex space-x-2">
-        <button onClick={()=>playAudio('/bromcom-2-mis-school-syterm/sounds/pa.mp3')} className="bg-blue-600 text-white px-4 py-2 rounded">Trigger PA</button>
-        <button onClick={()=>playAudio('/bromcom-2-mis-school-syterm/sounds/firealarm.mp3')} className="bg-red-600 text-white px-4 py-2 rounded">Fire Alarm</button>
-        <button onClick={()=>playAudio('/bromcom-2-mis-school-syterm/sounds/lockdown.mp3')} className="bg-gray-800 text-white px-4 py-2 rounded">Lockdown</button>
-        <button onClick={()=>{for(let i=0;i<3;i++){setTimeout(()=>playAudio('/bromcom-2-mis-school-syterm/sounds/bell.mp3'),i*1000)}}} className="bg-yellow-400 text-black px-4 py-2 rounded">School Bell (3x)</button>
+        <button onClick={()=>playAudio(`${BASE_URL}sounds/pa.mp3`)} className="bg-blue-600 text-white px-4 py-2 rounded">Trigger PA</button>
+        <button onClick={()=>playAudio(`${BASE_URL}sounds/firealarm.mp3`)} className="bg-red-600 text-white px-4 py-2 rounded">Fire Alarm</button>
+        <button onClick={()=>playAudio(`${BASE_URL}sounds/lockdown.mp3`)} className="bg-gray-800 text-white px-4 py-2 rounded">Lockdown</button>
+        <button onClick={()=>{for(let i=0;i<3;i++){setTimeout(()=>playAudio(`${BASE_URL}sounds/bell.mp3`),i*1000)}}} className="bg-yellow-400 text-black px-4 py-2 rounded">School Bell (3x)</button>
       </div>
     </div>
   );
