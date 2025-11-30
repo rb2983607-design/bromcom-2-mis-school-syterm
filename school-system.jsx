@@ -85,7 +85,7 @@ function SchoolHeader({ user, school, onLogout }) {
   return (
     <div className="w-full bg-[#005EB8] shadow-md rounded-b-xl p-4 flex justify-between items-center text-white">
       <div className="flex items-center">
-        <img src="/logo.svg" alt="Bromcom logo" className="h-10 mr-3 inline-block" onError={(e)=>{e.target.style.display='none'}} />
+        <img src={`${BASE_URL}logo.svg`} alt="Bromcom logo" className="h-10 mr-3 inline-block" onError={(e)=>{e.target.style.display='none'}} />
         <div>
           <h1 className="text-xl font-bold">{school}</h1>
           <p className="text-white text-sm">{user.role} {user.group ? `- ${user.group}` : ''}</p>
@@ -457,6 +457,42 @@ function Parents() {
 }
 
 // ========================================
+// SECTION 9A: PAGE - STAFF
+// ========================================
+function Staff() {
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4">Staff Directory</h2>
+      <p>View staff members and their roles.</p>
+    </div>
+  );
+}
+
+// ========================================
+// SECTION 9B: PAGE - TEACHERS
+// ========================================
+function Teachers() {
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4">Teachers</h2>
+      <p>View teacher profiles and contact information.</p>
+    </div>
+  );
+}
+
+// ========================================
+// SECTION 9C: PAGE - ADMIN
+// ========================================
+function Admin() {
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4">Admin Panel</h2>
+      <p>Administrative controls and system settings.</p>
+    </div>
+  );
+}
+
+// ========================================
 // SECTION 10: MAIN APPLICATION
 // ========================================
 function App() {
@@ -475,7 +511,10 @@ function App() {
     case 'Behaviour': PageComponent=Behaviour; break;
     case 'Modules': PageComponent=Modules; break;
     case 'Timetable': PageComponent=Timetable; break;
+    case 'Staff': PageComponent=Staff; break;
+    case 'Teachers': PageComponent=Teachers; break;
     case 'Parents': PageComponent=Parents; break;
+    case 'Admin': PageComponent=Admin; break;
     default: PageComponent=Dashboard;
   }
 
