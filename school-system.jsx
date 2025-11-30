@@ -74,7 +74,7 @@ function SchoolHeader({ user, school, onLogout }) {
   return (
     <div className="w-full bg-[#005EB8] shadow-md rounded-b-xl p-4 flex justify-between items-center text-white">
       <div className="flex items-center">
-        <img src="/logo.png" alt="Bromcom logo" className="h-10 mr-3 inline-block" onError={(e)=>{e.target.style.display='none'}} />
+        <img src="/logo.svg" alt="Bromcom logo" className="h-10 mr-3 inline-block" onError={(e)=>{e.target.style.display='none'}} />
         <div>
           <h1 className="text-xl font-bold">{school}</h1>
           <p className="text-white text-sm">{user.role} {user.group ? `- ${user.group}` : ''}</p>
