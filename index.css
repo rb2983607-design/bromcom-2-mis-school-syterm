@@ -36,3 +36,7 @@ button{cursor:pointer;border:none}
 /* Make tables readable */
 table{border-collapse:collapse;background:white}
 th,td{border:1px solid #e5e7eb}
+
+/* Section title styling */
+.section-title{font-size:1.25rem;font-weight:700;margin:0 0 0.25rem 0}
+.section-title--accent{color:var(--bromcom-blue)}

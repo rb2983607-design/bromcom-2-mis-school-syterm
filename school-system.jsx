@@ -3,6 +3,16 @@ import ReactDOM from 'react-dom';
 import Draggable from 'react-draggable';
 import './index.css';
 
+// Small reusable section title so each page can have a distinct look
+function SectionTitle({ title, subtitle, color }) {
+  return (
+    <div className="mb-4">
+      <h2 className="section-title" style={{ color: color || undefined }}>{title}</h2>
+      {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
+    </div>
+  );
+}
+
 // ========================================
 // SECTION 1: FAKE DATABASE
 // ========================================
@@ -110,7 +120,7 @@ function Sidebar({ currentPage, setCurrentPage }) {
 function Dashboard() {
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Dashboard</h2>
+      <SectionTitle title="Dashboard" color="#003F87" />
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white p-4 rounded shadow">Attendance Overview</div>
         <div className="bg-white p-4 rounded shadow">Behaviour Points</div>
@@ -135,7 +145,7 @@ function Behaviour() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Behaviour & Detention System</h2>
+      <SectionTitle title="Behaviour & Detention System" subtitle="Track behaviour ratings and detention triggers" color="#003F87" />
       <p className="text-sm text-gray-600 mb-3"><strong>Scale:</strong> 1 = Excellent | 2 = Good | 3 = Disruptive | 4 = Poor | 5 = Physical Conflict</p>
       <p className="text-sm text-red-600 mb-3"><strong>Detention Trigger:</strong> 2 or more ratings of 4 (Poor)</p>
       <table className="w-full border border-gray-300">
@@ -270,7 +280,7 @@ function Modules() {
         </div>
       )}
       <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-xl font-bold mb-4">Seating Plan</h2>
+        <SectionTitle title="Seating Plan" subtitle="Drag students to arrange seating" color="#003F87" />
         <p className="text-sm text-gray-600 mb-2"><span style={{color: 'rgb(239, 68, 68)'}}>🔴 Red = Detention Triggered</span> | <span style={{color: 'rgb(34, 197, 94)'}}>🟢 Green = Good Behaviour</span></p>
         <div className="relative w-full h-80 border border-gray-300 rounded bg-gray-50">
           {studentsData.map((s,idx)=>{
@@ -293,7 +303,7 @@ function Modules() {
         </div>
       </div>
       <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-xl font-bold mb-2">PA System</h2>
+        <SectionTitle title="PA System" subtitle="Type a message and press Enter to speak" color="#003F87" />
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
             <select value={selectedVoice} onChange={e=>setSelectedVoice(e.target.value)} className="border p-2 rounded">
