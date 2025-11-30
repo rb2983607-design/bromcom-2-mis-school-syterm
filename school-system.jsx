@@ -82,17 +82,106 @@ function AuthScreen({ onLogin }) {
 // SECTION 3: HEADER
 // ========================================
 function SchoolHeader({ user, school, onLogout }) {
+  const [paMessage, setPaMessage] = useState('');
+  const [voices, setVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState('');
+  const [alarmAudio, setAlarmAudio] = useState(null);
+  const [alarmActive, setAlarmActive] = useState(false);
+
+  React.useEffect(() => {
+    const load = () => {
+      const v = window.speechSynthesis.getVoices() || [];
+      setVoices(v);
+      if (v.length && !selectedVoice) setSelectedVoice(v[0].name);
+    };
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, []);
+
+  const playAudioHeader = (file, { loop=false, volume=1 } = {}) => {
+    try {
+      const a = new Audio(file);
+      a.loop = loop; a.volume = volume; a.play();
+      if (loop) { setAlarmAudio(a); setAlarmActive(true); }
+      return a;
+    } catch(e){ console.error(e); return null; }
+  };
+
+  const stopAlarmHeader = () => {
+    if (alarmAudio) { try{ alarmAudio.pause(); alarmAudio.currentTime = 0; }catch(e){} setAlarmAudio(null); setAlarmActive(false); }
+  };
+
+  const broadcastHeader = () => {
+    if (!paMessage) return;
+    if (!('speechSynthesis' in window)) { alert('Speech Synthesis not available'); return; }
+    const u = new SpeechSynthesisUtterance(paMessage);
+    if (voices.length && selectedVoice) {
+      const v = voices.find(x=>x.name===selectedVoice);
+      if (v) u.voice = v;
+    }
+    u.rate = 1; u.pitch = 1; u.volume = 1;
+    speechSynthesis.speak(u);
+    setPaMessage('');
+  };
+
+  const triggerHeaderPreset = (type) => {
+    if (type === 'general') {
+      const msg = 'Attention please. This is a general announcement.';
+      const u = new SpeechSynthesisUtterance(msg);
+      speechSynthesis.speak(u);
+      return;
+    }
+    if (type === 'lockdown') {
+      const msg = 'LOCKDOWN: Please follow the lockdown procedure now.';
+      speechSynthesis.speak(new SpeechSynthesisUtterance(msg));
+      playAudioHeader(`${BASE_URL}sounds/lockdown.mp3`, { loop:true, volume: 1 });
+      return;
+    }
+    if (type === 'fire') {
+      speechSynthesis.speak(new SpeechSynthesisUtterance('FIRE ALARM. Evacuate immediately.'));
+      playAudioHeader(`${BASE_URL}sounds/firealarm.mp3`, { loop:true, volume: 1 });
+      return;
+    }
+    if (type === 'bell') {
+      for (let i=0;i<3;i++) setTimeout(()=>playAudioHeader(`${BASE_URL}sounds/bell.mp3`, { volume:1 }), i*800);
+      return;
+    }
+  };
+
   return (
-    <div className="w-full bg-[#005EB8] shadow-md rounded-b-xl p-4 flex justify-between items-center text-white">
-      <div className="flex items-center">
-        <img src={`${BASE_URL}logo.svg`} alt="Bromcom logo" className="h-10 mr-3 inline-block" onError={(e)=>{e.target.style.display='none'}} />
+    <div className="app-header">
+      <div style={{display:'flex', alignItems:'center', gap:12}}>
+        <img src={`${BASE_URL}logo.svg`} alt="Bromcom logo" onError={(e)=>{e.target.style.display='none'}} style={{height:40, borderRadius:6}} />
         <div>
-          <h1 className="text-xl font-bold">{school}</h1>
-          <p className="text-white text-sm">{user.role} {user.group ? `- ${user.group}` : ''}</p>
+          <div className="title">{school}</div>
+          <div className="sub">{user.role} {user.group ? `- ${user.group}` : ''}</div>
         </div>
       </div>
-      <div>
-        <button onClick={onLogout} className="bg-white text-[#005EB8] px-4 py-2 rounded hover:bg-gray-100">Logout</button>
+
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <input value={paMessage} onChange={e=>setPaMessage(e.target.value)} placeholder="PA message" style={{padding:'6px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',minWidth:220,background:'rgba(255,255,255,0.06)',color:'white'}} />
+          <select value={selectedVoice} onChange={e=>setSelectedVoice(e.target.value)} style={{padding:'6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'white'}}>
+            {voices.length === 0 && <option>Loading voices...</option>}
+            {voices.map(v=> <option key={v.name} value={v.name}>{v.name}{v.lang?` (${v.lang})`:''}</option>)}
+          </select>
+          <button onClick={broadcastHeader} className="btn btn-primary">Broadcast</button>
+        </div>
+
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <button onClick={()=>triggerHeaderPreset('general')} className="btn btn-ghost">General</button>
+          <button onClick={()=>triggerHeaderPreset('lockdown')} className="btn btn-danger">Lockdown</button>
+          <button onClick={()=>triggerHeaderPreset('fire')} className="btn btn-danger">Fire</button>
+          <button onClick={()=>triggerHeaderPreset('bell')} className="btn btn-ghost">Bell</button>
+          <button onClick={stopAlarmHeader} className="btn btn-ghost">Stop</button>
+        </div>
+
+        <div className="user-pill">
+          <div style={{width:32,height:32,borderRadius:999,background:'#ffffff22',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{(user.name||'U').split(' ').map(n=>n[0]).slice(0,2).join('')}</div>
+          <div style={{fontSize:12}}>{user.name}</div>
+        </div>
+        <button onClick={onLogout} className="btn btn-ghost">Logout</button>
       </div>
     </div>
   );
@@ -102,15 +191,22 @@ function SchoolHeader({ user, school, onLogout }) {
 // SECTION 4: SIDEBAR NAVIGATION
 // ========================================
 function Sidebar({ currentPage, setCurrentPage }) {
-  const links = ['Dashboard', 'Behaviour', 'Modules', 'Staff', 'Teachers', 'Parents', 'Admin'];
+  const links = ['Dashboard', 'Attendance', 'Behaviour', 'Modules', 'Staff', 'Teachers', 'Parents', 'Admin'];
   return (
-    <div className="w-60 bg-[#003F87] text-white min-h-screen p-4 flex flex-col">
-      {links.map(link => (
-        <button key={link} onClick={() => setCurrentPage(link)}
-          className={`w-full text-left p-3 mb-2 rounded ${currentPage===link ? 'bg-[#002B55]' : 'hover:bg-[#002B55]'}`}>
-          {link}
-        </button>
-      ))}
+    <div className="app-sidebar">
+      <div className="brand">
+        <img src={`${BASE_URL}logo.svg`} alt="logo" onError={(e)=>{e.target.style.display='none'}} />
+        <div>
+          <div style={{fontWeight:800}}>Bromcom</div>
+          <div style={{fontSize:12,opacity:0.9}}>School MIS</div>
+        </div>
+      </div>
+      <div style={{flex:1}}>
+        {links.map(link => (
+          <button key={link} onClick={() => setCurrentPage(link)}
+            className={`nav-button ${currentPage===link? 'active':''}`}> {link} </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -439,6 +535,221 @@ function Timetable() {
       <h2 className="text-xl font-bold mb-4">Timetable</h2>
       <div className="grid grid-cols-5 gap-2">
         {['Mon','Tue','Wed','Thu','Fri'].map(day=><div key={day} className="bg-white p-4 rounded shadow">{day}</div>)}
+      </div>
+    </div>
+  );
+}
+
+// ========================================
+// SECTION 8A: PAGE - ATTENDANCE
+// ========================================
+function Attendance() {
+  const [attendanceState, setAttendanceState] = React.useState(() => {
+    try {
+      const raw = localStorage.getItem('attendance_v1');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    // initialize from studentsData
+    const init = {};
+    studentsData.forEach(s => { init[s.name] = { records: s.attendance.slice(), note: '' }; });
+    return init;
+  });
+
+  const [showSaved, setShowSaved] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState('last30'); // 'last30' or 'today'
+  const [importMsg, setImportMsg] = React.useState('');
+
+  const dateLabels = React.useMemo(() => {
+    const arr = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      arr.push(d.toISOString().slice(0, 10));
+    }
+    return arr;
+  }, []);
+
+  const todayIndex = dateLabels.length - 1;
+
+  React.useEffect(() => {
+    try { localStorage.setItem('attendance_v1', JSON.stringify(attendanceState)); } catch(e){}
+  }, [attendanceState]);
+
+  const togglePresent = (studentName, dayIndex) => {
+    setAttendanceState(prev => {
+      const next = JSON.parse(JSON.stringify(prev));
+      next[studentName].records[dayIndex] = !next[studentName].records[dayIndex];
+      return next;
+    });
+  };
+
+  const setAll = (present=true) => {
+    setAttendanceState(prev => {
+      const next = {};
+      Object.keys(prev).forEach(k => { next[k] = { ...prev[k], records: prev[k].records.map(()=>present) }; });
+      return next;
+    });
+  };
+
+  const updateNote = (studentName, note) => {
+    setAttendanceState(prev => ({ ...prev, [studentName]: { ...prev[studentName], note } }));
+  };
+
+  const saveAttendance = () => {
+    try {
+      localStorage.setItem('attendance_v1', JSON.stringify(attendanceState));
+      setShowSaved(true);
+      setTimeout(()=>setShowSaved(false), 1800);
+    } catch (e) { console.error(e); }
+  };
+
+  const resetAttendance = () => {
+    const init = {};
+    studentsData.forEach(s => { init[s.name] = { records: s.attendance.slice(), note: '' }; });
+    setAttendanceState(init);
+    setShowSaved(true);
+    setTimeout(()=>setShowSaved(false), 1400);
+  };
+
+  const importCSVFile = async (file) => {
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(l=>l.trim());
+      const [header, ...rows] = lines;
+      let updated = { ...attendanceState };
+      rows.forEach(r => {
+        const cols = r.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c=>c.replace(/^"|"$/g, ''));
+        const name = cols[0];
+        const att = (cols[1] || '').split('|');
+        const note = cols[3] || '';
+        if (!updated[name]) return;
+        // map att to booleans (P => true)
+        const rec = att.map(v => v.trim().toUpperCase() === 'P');
+        // ensure length
+        if (rec.length === dateLabels.length) {
+          updated[name].records = rec;
+          updated[name].note = note;
+        }
+      });
+      setAttendanceState(updated);
+      setImportMsg('Imported successfully');
+      setTimeout(()=>setImportMsg(''),2000);
+    } catch(e){ console.error(e); setImportMsg('Import failed'); setTimeout(()=>setImportMsg(''),3000); }
+  };
+
+  const exportCSV = () => {
+    const header = ['Student','Attendance(Last30)','PresentCount','Note'];
+    const rows = Object.keys(attendanceState).map(name => {
+      const rec = attendanceState[name].records;
+      const presentCount = rec.filter(Boolean).length;
+      return [name, rec.map(r=> r ? 'P' : 'A').join('|'), presentCount, (attendanceState[name].note||'')];
+    });
+    const csv = [header, ...rows].map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'attendance_export.csv'; a.click(); URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-4">
+      <SectionTitle title="Attendance" subtitle="Quickly mark and manage attendance. Click a cell to toggle present/absent. Add notes per student." color="#003F87" />
+      <div className="flex items-center space-x-2">
+        <button onClick={()=>setAll(true)} className="btn btn-primary">Mark All Present</button>
+        <button onClick={()=>setAll(false)} className="btn btn-danger">Mark All Absent</button>
+        <button onClick={saveAttendance} className="btn btn-ghost">Save</button>
+        <button onClick={resetAttendance} className="btn btn-ghost">Reset</button>
+        <button onClick={exportCSV} className="btn btn-primary">Export CSV</button>
+        <label className="btn btn-ghost" style={{display:'inline-flex',alignItems:'center',gap:8}}>
+          Import CSV
+          <input type="file" accept="text/csv" style={{display:'none'}} onChange={e=>{ if(e.target.files && e.target.files[0]) importCSVFile(e.target.files[0]); e.target.value=''; }} />
+        </label>
+        <div className="ml-2">
+          <select value={viewMode} onChange={e=>setViewMode(e.target.value)} className="border rounded p-1">
+            <option value="last30">Last 30 days</option>
+            <option value="today">Today (Roll-call)</option>
+          </select>
+        </div>
+        {showSaved && <div className="badge">Saved</div>}
+        {importMsg && <div className="muted">{importMsg}</div>}
+      </div>
+      <div className="muted text-sm">Tip: Click each cell to toggle Present (P) / Absent (A). Use notes to record reasons.</div>
+      <div className="overflow-x-auto card">
+        {viewMode === 'last30' ? (
+          <table className="w-full table-auto">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="p-2">Student</th>
+                <th className="p-2">Last 30 Days</th>
+                <th className="p-2">Present</th>
+                <th className="p-2">Note</th>
+              </tr>
+              <tr className="text-left muted text-xs">
+                <th></th>
+                <th className="p-2">{dateLabels.slice(0,7).map(d=>d.split('-').slice(1).join('/')).join(' ')} ...</th>
+                <th></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(attendanceState).map(name => {
+                const rec = attendanceState[name].records;
+                const presentCount = rec.filter(Boolean).length;
+                return (
+                  <tr key={name} className="border-b">
+                    <td className="p-2 font-bold">{name}</td>
+                    <td className="p-2 text-sm">
+                      <div className="flex flex-wrap gap-1">
+                        {rec.map((r,idx)=> (
+                          <button key={idx} onClick={()=>togglePresent(name, idx)} className={`w-6 h-6 rounded text-xs flex items-center justify-center ${r ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`}>{r? 'P':'A'}</button>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-2">{presentCount}/{rec.length}</td>
+                    <td className="p-2">
+                      <textarea value={attendanceState[name].note || ''} onChange={e=>updateNote(name, e.target.value)} className="border p-1 w-full rounded" placeholder="Write notes..." />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          // Today roll-call view
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={()=>{ setAll(true); saveAttendance(); }} className="btn btn-primary">Mark All Present</button>
+              <button onClick={()=>{ setAll(false); saveAttendance(); }} className="btn btn-danger">Mark All Absent</button>
+              <button onClick={saveAttendance} className="btn btn-ghost">Save Roll-call</button>
+            </div>
+            <table className="w-full table-auto">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="p-2">Student</th>
+                  <th className="p-2">Today ({dateLabels[todayIndex]})</th>
+                  <th className="p-2">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(attendanceState).map(name => {
+                  const rec = attendanceState[name].records;
+                  const todayPresent = rec[todayIndex];
+                  return (
+                    <tr key={name} className="border-b">
+                      <td className="p-2 font-bold">{name}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <button onClick={()=>{ togglePresent(name, todayIndex); saveAttendance(); }} className={`btn ${todayPresent? 'btn-primary':'btn-ghost'}`}>{todayPresent? 'Present':'Absent'}</button>
+                        </div>
+                      </td>
+                      <td className="p-2"><input value={attendanceState[name].note||''} onChange={e=>updateNote(name,e.target.value)} className="border p-1 w-full rounded" /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
